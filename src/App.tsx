@@ -737,6 +737,7 @@ export default function App() {
                 view="dashboard"
                 applications={applications}
                 setActiveMenu={handleSetActiveMenu}
+                userRole={portalUser?.role}
               />
             ) : activeMenu === 'tenants' ? (
               portalUser?.role === 'super-admin' ? (
@@ -751,6 +752,7 @@ export default function App() {
                   view="dashboard"
                   applications={applications}
                   setActiveMenu={handleSetActiveMenu}
+                  userRole={portalUser?.role}
                 />
               )
             ) : activeMenu === 'users' ? (
@@ -772,6 +774,7 @@ export default function App() {
                 onUpdateConfig={handleUpdateConfig}
                 view="settings"
                 applications={applications}
+                userRole={portalUser?.role}
               />
             ) : null
           )}
