@@ -223,12 +223,33 @@ export default function App() {
     fetchUserData(token);
   }, [token]);
 
-  // Fetch tenants for super-admin and tenant admin portal
+  // Fetch tenants for super-admin and tenant admin portal, and auto-select if URL matches a slug
   useEffect(() => {
     if (token && (currentPortal === 'super-admin' || portalUser?.role === 'super-admin' || portalUser?.role === 'admin')) {
       apiFetch('/tenants')
         .then(data => {
-          if (Array.isArray(data)) setTenantsList(data);
+          if (Array.isArray(data)) {
+            setTenantsList(data);
+
+            // Check if URL pathname or search param matches any tenant slug
+            const pathPart = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/')[0]?.toLowerCase();
+            const params = new URLSearchParams(window.location.search);
+            const orgParam = params.get('org') || params.get('tenant') || params.get('subscriber');
+            const targetSlug = (orgParam || pathPart)?.toLowerCase();
+
+            const systemRoutes = ['login', 'register', 'forgot', 'payment', 'tg-share-phone', 'privacy', 'terms', 'api'];
+            if (targetSlug && !systemRoutes.includes(targetSlug)) {
+              const matchedTenant = data.find(
+                t => t.slug?.toLowerCase() === targetSlug || String(t.id) === targetSlug
+              );
+              if (matchedTenant) {
+                const tidStr = String(matchedTenant.id);
+                setSelectedTenantId(tidStr);
+                localStorage.setItem('nexus_selected_tenant_id', tidStr);
+                refetchAll();
+              }
+            }
+          }
         })
         .catch(() => {});
     }
