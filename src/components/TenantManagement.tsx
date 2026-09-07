@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Building2, Users, Landmark, Settings, Trash2, Edit2, X, Check, Download, QrCode, Upload, CreditCard, RotateCcw, AlertTriangle, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Building2, Users, Landmark, Settings, Trash2, Edit2, X, Check, Download, QrCode, Upload, CreditCard, RotateCcw, AlertTriangle, ShieldAlert, ChevronDown, Sparkles } from 'lucide-react';
 import { apiFetch } from '../api';
 import { showToast } from './Toast';
 import { downloadCSV } from '../utils';
@@ -21,6 +21,8 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
   const [purging, setPurging] = useState(false);
   const [subscriberToSuspend, setSubscriberToSuspend] = useState<Tenant | null>(null);
   const [suspending, setSuspending] = useState(false);
+  const [isPlanDropdownOpen, setIsPlanDropdownOpen] = useState(false);
+  const planDropdownRef = useRef<HTMLDivElement>(null);
 
   // Form state
   const [formName, setFormName] = useState('');
@@ -206,6 +208,23 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
     setFormPaywayMerchantId(tenant.payway_merchant_id || '');
     setFormPaywayApiKey(tenant.payway_api_key || '');
   };
+
+  const planOptions = [
+    { id: 'founding', label: 'Founding', price: 'Free', badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300', desc: 'Full founding tier privileges' },
+    { id: 'basic', label: 'Basic', price: '$49/mo', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300', desc: 'Up to 50 users & 500 loans' },
+    { id: 'standard', label: 'Standard', price: '$149/mo', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', desc: 'Up to 200 users & 2,000 loans' },
+    { id: 'premium', label: 'Premium', price: '$349/mo', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300', desc: 'Unlimited enterprise volume' },
+  ];
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (planDropdownRef.current && !planDropdownRef.current.contains(e.target as Node)) {
+        setIsPlanDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const planColors: Record<string, string> = {
     founding: 'bg-purple-100 text-purple-700',
@@ -446,16 +465,17 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
       {/* Create/Edit Modal */}
       {(showCreate || editingTenant) && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}
           onClick={() => { setShowCreate(false); setEditingTenant(null); }}
         >
           <div
-            className="w-full max-w-3xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
+            className="w-full max-w-3xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[92vh] relative"
             style={{ backgroundColor: 'var(--surface-primary)', borderColor: 'var(--border-primary)' }}
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4.5 border-b" style={{ borderColor: 'var(--border-primary)' }}>
+            <div className="flex items-center justify-between px-6 py-4.5 border-b shrink-0" style={{ borderColor: 'var(--border-primary)' }}>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20">
                   <Building2 className="w-5 h-5" />
@@ -479,7 +499,7 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
             </div>
 
             {/* Modal Body - 2 Columns rectangular layout */}
-            <div className="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
               {/* Left Column: Organization Profile & Plan */}
               <div className="space-y-4">
                 <div className="text-xs font-bold uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5">
@@ -575,19 +595,83 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Subscription Plan</label>
-                  <select
-                    value={formPlan}
-                    onChange={e => setFormPlan(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm border outline-none cursor-pointer focus:ring-2 focus:ring-[var(--accent)]"
-                    style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--surface-secondary)', color: 'var(--text-primary)' }}
+                {/* Premium Custom Plan Dropdown */}
+                <div className="relative" ref={planDropdownRef}>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                    Subscription Plan
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsPlanDropdownOpen(!isPlanDropdownOpen)}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm border flex items-center justify-between cursor-pointer transition-all duration-150 hover:border-[var(--accent)]"
+                    style={{
+                      borderColor: isPlanDropdownOpen ? 'var(--accent)' : 'var(--border-primary)',
+                      backgroundColor: 'var(--surface-secondary)',
+                      color: 'var(--text-primary)',
+                    }}
                   >
-                    <option value="founding">Founding (Free)</option>
-                    <option value="basic">Basic ($49/mo)</option>
-                    <option value="standard">Standard ($149/mo)</option>
-                    <option value="premium">Premium ($349/mo)</option>
-                  </select>
+                    {(() => {
+                      const cur = planOptions.find(p => p.id === formPlan) || planOptions[1];
+                      return (
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className={`px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider ${cur.badge}`}>
+                            {cur.label}
+                          </span>
+                          <span className="text-xs font-semibold text-[var(--text-primary)]">{cur.price}</span>
+                          <span className="text-xs text-[var(--text-secondary)] truncate hidden sm:inline">· {cur.desc}</span>
+                        </div>
+                      );
+                    })()}
+                    <ChevronDown className={`w-4 h-4 text-[var(--text-secondary)] transition-transform duration-200 shrink-0 ml-2 ${isPlanDropdownOpen ? 'rotate-180 text-[var(--accent)]' : ''}`} />
+                  </button>
+
+                  {/* Dropdown Menu Popper */}
+                  {isPlanDropdownOpen && (
+                    <div
+                      className="absolute left-0 right-0 top-full mt-1.5 rounded-2xl border shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150"
+                      style={{
+                        backgroundColor: 'var(--surface-primary)',
+                        borderColor: 'var(--border-primary)',
+                      }}
+                    >
+                      <div className="space-y-1">
+                        {planOptions.map((opt) => {
+                          const isSelected = formPlan === opt.id;
+                          return (
+                            <div
+                              key={opt.id}
+                              onClick={() => {
+                                setFormPlan(opt.id);
+                                setIsPlanDropdownOpen(false);
+                              }}
+                              className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all duration-150 ${
+                                isSelected
+                                  ? 'bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/30'
+                                  : 'hover:bg-[var(--surface-secondary)] text-[var(--text-primary)] border border-transparent'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider ${opt.badge}`}>
+                                  {opt.label}
+                                </span>
+                                <div>
+                                  <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                    {opt.price}
+                                  </p>
+                                  <p className="text-[11px] text-[var(--text-secondary)] leading-tight">
+                                    {opt.desc}
+                                  </p>
+                                </div>
+                              </div>
+                              {isSelected && (
+                                <Check className="w-4 h-4 text-[var(--accent)] shrink-0 ml-2" />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
