@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, Building2, Users, Landmark, Settings, Trash2, Edit2, X, Check, Download, QrCode, Upload, CreditCard, RotateCcw, AlertTriangle, ShieldAlert, ChevronDown, Sparkles } from 'lucide-react';
 import { apiFetch } from '../api';
 import { showToast } from './Toast';
@@ -463,10 +464,9 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
     })()}
 
       {/* Create/Edit Modal */}
-      {(showCreate || editingTenant) && (
+      {(showCreate || editingTenant) && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}
+          className="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
           onClick={() => { setShowCreate(false); setEditingTenant(null); }}
         >
           <div
@@ -816,7 +816,7 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
             </div>
 
             {/* Footer Actions */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--surface-secondary)' }}>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--surface-secondary)' }}>
               <button
                 onClick={() => { setShowCreate(false); setEditingTenant(null); }}
                 className="px-5 py-2.5 rounded-xl text-sm font-semibold border cursor-pointer hover:bg-[var(--surface-primary)] transition-colors"
@@ -834,12 +834,13 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Suspend Confirmation Modal */}
-      {subscriberToSuspend && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+      {subscriberToSuspend && createPortal(
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div
             className="w-full max-w-md rounded-2xl border p-6 shadow-2xl relative"
             style={{ backgroundColor: 'var(--surface-primary)', borderColor: 'var(--border-primary)' }}
@@ -890,12 +891,13 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Permanent Purge Modal */}
-      {subscriberToPurge && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+      {subscriberToPurge && createPortal(
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div
             className="w-full max-w-md rounded-2xl border p-6 shadow-2xl relative"
             style={{ backgroundColor: 'var(--surface-primary)', borderColor: 'var(--border-primary)' }}
@@ -965,7 +967,8 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
