@@ -40,6 +40,45 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
   const [view, setView] = useState<AuthView>('login');
   const [emailVerificationRequired, setEmailVerificationRequired] = useState<boolean | null>(null);
 
+  // Dedicated URL Subscriber (e.g. /kako or ?org=kako)
+  const [dedicatedTenant, setDedicatedTenant] = useState<{ id: number; name: string; slug: string; logo_url: string | null } | null>(null);
+  const [tenantLoading, setTenantLoading] = useState(false);
+  const [tenantError, setTenantError] = useState<string | null>(null);
+
+  // Detect subscriber slug from pathname or ?org= query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const orgParam = params.get('org') || params.get('tenant') || params.get('subscriber');
+    const pathPart = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
+    
+    // System routes to ignore
+    const systemRoutes = ['login', 'register', 'forgot', 'payment', 'tg-share-phone', 'privacy', 'terms', 'api'];
+    const candidateSlug = orgParam || (pathPart && !systemRoutes.includes(pathPart.toLowerCase()) ? pathPart : null);
+
+    if (candidateSlug) {
+      setTenantLoading(true);
+      fetch(`${API}/tenants/lookup/${encodeURIComponent(candidateSlug)}`)
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || 'Subscriber organization not found');
+          }
+          setDedicatedTenant(data);
+          // If accessing via dedicated URL, default to create account view for seamless onboarding
+          if (window.location.pathname !== '/' && window.location.pathname !== '') {
+            setView('register');
+          }
+        })
+        .catch((err: any) => {
+          console.warn('Tenant lookup note:', err.message);
+          setTenantError(err.message);
+        })
+        .finally(() => {
+          setTenantLoading(false);
+        });
+    }
+  }, []);
+
   // Support Modal States
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportName, setSupportName] = useState('');
@@ -379,7 +418,13 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
       const registerRes = await fetch(`${API}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: registerName, email: targetEmail, password: registerPassword, phone: targetPhone }),
+        body: JSON.stringify({ 
+          name: registerName, 
+          email: targetEmail, 
+          password: registerPassword, 
+          phone: targetPhone,
+          tenant_id: dedicatedTenant ? dedicatedTenant.id : 1,
+        }),
       });
       const registerData = await registerRes.json();
       if (!registerRes.ok) throw new Error(registerData.error || 'Registration failed.');
@@ -882,20 +927,41 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
       {/* 2. Scrollable Viewport Container */}
       <div className="absolute inset-0 overflow-y-auto w-full h-full flex flex-col z-10">
         
-        {/* Global Navigation Header with Official Brand Logo */}
+        {/* Global Navigation Header with Official Brand Logo or Dedicated Subscriber Logo */}
         <header className="relative z-20 px-4 py-3 sm:px-8 md:px-12 sm:py-4 flex justify-between items-center bg-white/60 backdrop-blur-md border-b border-slate-200/70 shadow-xs">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <img 
-              src="/logo-nexus-finance.png" 
-              alt="Nexus Finance Logo" 
-              className="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0"
-            />
+            {dedicatedTenant?.logo_url ? (
+              <img 
+                src={dedicatedTenant.logo_url} 
+                alt={dedicatedTenant.name} 
+                className="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0 bg-white p-0.5 border border-slate-200"
+              />
+            ) : (
+              <img 
+                src="/logo-nexus-finance.png" 
+                alt="Nexus Finance Logo" 
+                className="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0"
+              />
+            )}
             <div className="flex flex-col min-w-0">
               <span className="font-sans text-[17px] sm:text-[20px] tracking-tight flex items-center leading-none">
-                <span className="text-slate-900 font-extrabold">Nexus</span>
-                <span className="text-emerald-600 font-semibold ml-0.5">Finance</span>
+                {dedicatedTenant ? (
+                  <>
+                    <span className="text-slate-900 font-extrabold truncate">{dedicatedTenant.name}</span>
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 ml-2 shrink-0">
+                      Partner Portal
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-slate-900 font-extrabold">Nexus</span>
+                    <span className="text-emerald-600 font-semibold ml-0.5">Finance</span>
+                  </>
+                )}
               </span>
-              <span className="hidden sm:block text-[10px] text-slate-500 font-bold tracking-wider uppercase mt-1 truncate">All-in-One FinTech Ecosystem</span>
+              <span className="hidden sm:block text-[10px] text-slate-500 font-bold tracking-wider uppercase mt-1 truncate">
+                {dedicatedTenant ? `Powered by Nexus Finance • ${dedicatedTenant.slug}` : 'All-in-One FinTech Ecosystem'}
+              </span>
             </div>
           </div>
 
@@ -1186,12 +1252,40 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
                         
                         {/* PANEL 1: SIGN IN FORM */}
                         <div className="w-1/2 shrink-0 pr-3">
+                          {dedicatedTenant && (
+                            <div className="mb-4 p-3 rounded-2xl bg-emerald-50/90 border border-emerald-200/80 flex items-center gap-3">
+                              {dedicatedTenant.logo_url ? (
+                                <img 
+                                  src={dedicatedTenant.logo_url} 
+                                  alt={dedicatedTenant.name} 
+                                  className="w-9 h-9 object-contain rounded-xl bg-white p-1 border border-emerald-100 shadow-xs shrink-0" 
+                                />
+                              ) : (
+                                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shrink-0">
+                                  {dedicatedTenant.name.charAt(0)}
+                                </div>
+                              )}
+                              <div className="min-w-0 text-left">
+                                <p className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-700">
+                                  {isKhmer ? 'ច្រកចូលដៃគូ' : 'Partner Portal'}
+                                </p>
+                                <p className="text-[13px] font-bold text-slate-800 truncate">
+                                  {dedicatedTenant.name}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
                           <div className="text-left mb-4">
                             <h2 className="text-[25px] font-black text-slate-900 tracking-tight">
-                              {isKhmer ? 'ស្វាគមន៍ការចូលប្រើ' : 'Welcome Back'}
+                              {dedicatedTenant 
+                                ? (isKhmer ? `ស្វាគមន៍មកកាន់ ${dedicatedTenant.name}` : `Welcome to ${dedicatedTenant.name}`)
+                                : (isKhmer ? 'ស្វាគមន៍ការចូលប្រើ' : 'Welcome Back')}
                             </h2>
                             <p className="text-[13px] text-slate-500 font-medium mt-1">
-                              {isKhmer ? 'បញ្ចូលព័ត៌មានគណនីដើម្បីចូលទៅកាន់ផ្ទាំងគ្រប់គ្រង' : 'Access your loans, ledger, and repayments'}
+                              {dedicatedTenant
+                                ? (isKhmer ? `ចូលប្រើប្រាស់គណនីអតិថិជន ${dedicatedTenant.name}` : `Sign in to access your ${dedicatedTenant.name} account`)
+                                : (isKhmer ? 'បញ្ចូលព័ត៌មានគណនីដើម្បីចូលទៅកាន់ផ្ទាំងគ្រប់គ្រង' : 'Access your loans, ledger, and repayments')}
                             </p>
                           </div>
 
@@ -1298,12 +1392,40 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
 
                         {/* PANEL 2: CREATE ACCOUNT FORM */}
                         <div className="w-1/2 shrink-0 pl-3">
+                          {dedicatedTenant && (
+                            <div className="mb-4 p-3 rounded-2xl bg-emerald-50/90 border border-emerald-200/80 flex items-center gap-3">
+                              {dedicatedTenant.logo_url ? (
+                                <img 
+                                  src={dedicatedTenant.logo_url} 
+                                  alt={dedicatedTenant.name} 
+                                  className="w-9 h-9 object-contain rounded-xl bg-white p-1 border border-emerald-100 shadow-xs shrink-0" 
+                                />
+                              ) : (
+                                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shrink-0">
+                                  {dedicatedTenant.name.charAt(0)}
+                                </div>
+                              )}
+                              <div className="min-w-0 text-left">
+                                <p className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-700">
+                                  {isKhmer ? 'ចុះឈ្មោះជាមួយដៃគូ' : 'Partner Registration'}
+                                </p>
+                                <p className="text-[13px] font-bold text-slate-800 truncate">
+                                  {dedicatedTenant.name}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
                           <div className="text-left mb-4">
                             <h2 className="text-[25px] font-black text-slate-900 tracking-tight">
-                              {isKhmer ? 'បង្កើតគណនីថ្មី' : 'Create Account'}
+                              {dedicatedTenant 
+                                ? (isKhmer ? `ចូលរួមជាមួយ ${dedicatedTenant.name}` : `Join ${dedicatedTenant.name}`)
+                                : (isKhmer ? 'បង្កើតគណនីថ្មី' : 'Create Account')}
                             </h2>
                             <p className="text-[13px] text-slate-500 font-medium mt-1">
-                              {isKhmer ? 'ចាប់ផ្តើមដំណើរការឥណទាន និងការគ្រប់គ្រងហិរញ្ញវត្ថុ' : 'Get started in less than 2 minutes'}
+                              {dedicatedTenant 
+                                ? (isKhmer ? `បង្កើតគណនីអតិថិជនផ្លូវការជាមួយ ${dedicatedTenant.name}` : `Register your official borrower account with ${dedicatedTenant.name}`)
+                                : (isKhmer ? 'ចាប់ផ្តើមដំណើរការឥណទាន និងការគ្រប់គ្រងហិរញ្ញវត្ថុ' : 'Get started in less than 2 minutes')}
                             </p>
                           </div>
 

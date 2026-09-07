@@ -2788,6 +2788,36 @@ app.post('/api/tenants', authMiddleware, requireRole('super-admin'), async (req,
   });
 });
 
+// Public lookup endpoint for dedicated customer registration links (by slug or id)
+app.get('/api/tenants/lookup/:identifier', async (req, res) => {
+  const { identifier } = req.params;
+  const cleanId = String(identifier).trim().toLowerCase().replace(/^\//, '');
+  
+  let query = db.from('nexus_tenants').select('id, name, slug, logo_url, plan, is_active');
+  const isNumeric = /^\d+$/.test(cleanId);
+  if (isNumeric) {
+    query = query.or(`id.eq.${cleanId},slug.eq.${cleanId}`);
+  } else {
+    query = query.eq('slug', cleanId);
+  }
+
+  const { data: tenant, error } = await query.maybeSingle();
+  if (error || !tenant) {
+    return res.status(404).json({ error: 'Subscriber organization not found.' });
+  }
+  if (!tenant.is_active) {
+    return res.status(403).json({ error: 'This organization is currently suspended.' });
+  }
+
+  res.json({
+    id: tenant.id,
+    name: tenant.name,
+    slug: tenant.slug,
+    logo_url: tenant.logo_url || null,
+    plan: tenant.plan,
+  });
+});
+
 // Get tenant details (super-admin or tenant admin)
 app.get('/api/tenants/:id', authMiddleware, requireRole('super-admin', 'admin'), async (req, res) => {
   const tenantId = parseInt(req.params.id);

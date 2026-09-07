@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Building2, Users, Landmark, Settings, Trash2, Edit2, X, Check, Download, QrCode, Upload, CreditCard, RotateCcw, AlertTriangle, ShieldAlert, ChevronDown, Sparkles } from 'lucide-react';
+import { Plus, Building2, Users, Landmark, Settings, Trash2, Edit2, X, Check, Download, QrCode, Upload, CreditCard, RotateCcw, AlertTriangle, ShieldAlert, ChevronDown, Sparkles, Link as LinkIcon, Copy } from 'lucide-react';
 import { apiFetch } from '../api';
 import { showToast } from './Toast';
 import { downloadCSV } from '../utils';
@@ -11,6 +11,7 @@ interface TenantManagementProps {
 }
 
 export default function TenantManagement({ selectedTenantId }: TenantManagementProps = {}) {
+  const [copiedSlugId, setCopiedSlugId] = useState<number | null>(null);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -379,7 +380,34 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
                   </div>
                   <div className="min-w-0">
                     <h3 className="font-bold text-sm text-[var(--text-primary)] truncate">{tenant.name}</h3>
-                    <p className="text-xs text-[var(--text-secondary)] truncate">/{tenant.slug}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const url = `${window.location.origin}/${tenant.slug}`;
+                          navigator.clipboard.writeText(url);
+                          setCopiedSlugId(tenant.id);
+                          showToast(`Dedicated link copied: ${url}`, 'success');
+                          setTimeout(() => setCopiedSlugId(null), 2500);
+                        }}
+                        title="Click to copy subscriber registration link"
+                        className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-mono font-medium transition-all bg-[var(--surface-secondary)] hover:bg-emerald-500/15 hover:text-emerald-600 text-[var(--text-secondary)] border border-[var(--border-primary)] hover:border-emerald-400 cursor-pointer group"
+                      >
+                        {copiedSlugId === tenant.id ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-500" />
+                            <span className="text-emerald-600 font-bold">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <LinkIcon className="w-3 h-3 text-[var(--text-tertiary)] group-hover:text-emerald-500" />
+                            <span>/{tenant.slug}</span>
+                            <Copy className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5 text-emerald-500" />
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
