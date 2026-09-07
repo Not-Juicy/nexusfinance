@@ -740,6 +740,82 @@ export default function SuperAdminDashboard({
           </div>
 
           <div className="border-t border-[var(--border-primary)] pt-5 space-y-4">
+            <div>
+              <h4 className="text-[14px] font-extrabold text-[var(--text-primary)] flex items-center gap-1.5">
+                💳 Subscription Tier Monthly Pricing ($/month)
+              </h4>
+              <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                Configure the baseline monthly subscription rates charged to subscribing organizations. Updates live across Subscriber Management.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-3.5 bg-[var(--surface-secondary)]/50 border border-[var(--border-primary)] rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                    Basic Plan
+                  </span>
+                  <span className="text-[11px] text-[var(--text-secondary)]">Up to 50 users</span>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-sm font-bold text-[var(--text-secondary)]">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={editingConfig.plan_basic_price !== undefined ? editingConfig.plan_basic_price : 49}
+                    onChange={(e) => setEditingConfig((p) => ({ ...p, plan_basic_price: parseFloat(e.target.value) || 0 }))}
+                    className="w-full bg-[var(--surface-primary)] border border-[var(--border-primary)] py-2.5 pl-7 pr-3 rounded-lg text-[14px] font-mono font-bold focus:outline-none focus:border-[var(--accent)] text-[var(--text-primary)]"
+                    placeholder="49"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-[var(--surface-secondary)]/50 border border-[var(--border-primary)] rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                    Standard Plan
+                  </span>
+                  <span className="text-[11px] text-[var(--text-secondary)]">Up to 200 users</span>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-sm font-bold text-[var(--text-secondary)]">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={editingConfig.plan_standard_price !== undefined ? editingConfig.plan_standard_price : 149}
+                    onChange={(e) => setEditingConfig((p) => ({ ...p, plan_standard_price: parseFloat(e.target.value) || 0 }))}
+                    className="w-full bg-[var(--surface-primary)] border border-[var(--border-primary)] py-2.5 pl-7 pr-3 rounded-lg text-[14px] font-mono font-bold focus:outline-none focus:border-[var(--accent)] text-[var(--text-primary)]"
+                    placeholder="149"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-[var(--surface-secondary)]/50 border border-[var(--border-primary)] rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                    Premium Plan
+                  </span>
+                  <span className="text-[11px] text-[var(--text-secondary)]">Unlimited volume</span>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-sm font-bold text-[var(--text-secondary)]">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={editingConfig.plan_premium_price !== undefined ? editingConfig.plan_premium_price : 349}
+                    onChange={(e) => setEditingConfig((p) => ({ ...p, plan_premium_price: parseFloat(e.target.value) || 0 }))}
+                    className="w-full bg-[var(--surface-primary)] border border-[var(--border-primary)] py-2.5 pl-7 pr-3 rounded-lg text-[14px] font-mono font-bold focus:outline-none focus:border-[var(--accent)] text-[var(--text-primary)]"
+                    placeholder="349"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-[var(--border-primary)] pt-5 space-y-4">
             <h4 className="text-[14px] font-extrabold text-[var(--text-primary)] flex items-center gap-1.5">
               💬 {t('brevo_sms_gateway')}
             </h4>

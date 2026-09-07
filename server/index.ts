@@ -1469,7 +1469,19 @@ app.patch('/api/users/:id/tenant', authMiddleware, requireRole('super-admin'), a
 app.get('/api/config', authMiddleware, async (req, res) => {
   const tenantId = req.user?.tenant_id || 1;
   const { data: config } = await db.from('nexus_config').select('*').eq('tenant_id', tenantId).maybeSingle();
-  res.json(config || {});
+  
+  // Read plan pricing from root tenant 1's config
+  let pricingConfig = { plan_basic_price: 49, plan_standard_price: 149, plan_premium_price: 349 };
+  try {
+    const { data: rootTenant } = await db.from('nexus_tenants').select('config').eq('id', 1).maybeSingle();
+    if (rootTenant?.config) {
+      if (rootTenant.config.plan_basic_price !== undefined) pricingConfig.plan_basic_price = rootTenant.config.plan_basic_price;
+      if (rootTenant.config.plan_standard_price !== undefined) pricingConfig.plan_standard_price = rootTenant.config.plan_standard_price;
+      if (rootTenant.config.plan_premium_price !== undefined) pricingConfig.plan_premium_price = rootTenant.config.plan_premium_price;
+    }
+  } catch { /* fallback */ }
+
+  res.json({ ...(config || {}), ...pricingConfig });
 });
 
 const handleUpdateConfig = async (req: any, res: any) => {
@@ -1481,6 +1493,21 @@ const handleUpdateConfig = async (req: any, res: any) => {
   for (const key of Object.keys(req.body)) {
     if (currentConfig && key in currentConfig) {
       updatePayload[key] = req.body[key];
+    }
+  }
+
+  // Handle plan pricing update (persisted into root tenant 1 JSONB config)
+  const { plan_basic_price, plan_standard_price, plan_premium_price } = req.body;
+  if (plan_basic_price !== undefined || plan_standard_price !== undefined || plan_premium_price !== undefined) {
+    try {
+      const { data: rootTenant } = await db.from('nexus_tenants').select('config').eq('id', 1).maybeSingle();
+      const tenantCfg = rootTenant?.config || {};
+      if (plan_basic_price !== undefined) tenantCfg.plan_basic_price = Number(plan_basic_price);
+      if (plan_standard_price !== undefined) tenantCfg.plan_standard_price = Number(plan_standard_price);
+      if (plan_premium_price !== undefined) tenantCfg.plan_premium_price = Number(plan_premium_price);
+      await db.from('nexus_tenants').update({ config: tenantCfg }).eq('id', 1);
+    } catch (e) {
+      console.error('Error updating plan pricing in tenant 1:', e);
     }
   }
 
@@ -1504,7 +1531,19 @@ const handleUpdateConfig = async (req: any, res: any) => {
   if (config && config.reminder_time) {
     scheduleReminderCron(config.reminder_time);
   }
-  res.json(config || {});
+
+  // Return merged response including plan pricing
+  let pricingConfig = { plan_basic_price: 49, plan_standard_price: 149, plan_premium_price: 349 };
+  try {
+    const { data: rootTenant } = await db.from('nexus_tenants').select('config').eq('id', 1).maybeSingle();
+    if (rootTenant?.config) {
+      if (rootTenant.config.plan_basic_price !== undefined) pricingConfig.plan_basic_price = rootTenant.config.plan_basic_price;
+      if (rootTenant.config.plan_standard_price !== undefined) pricingConfig.plan_standard_price = rootTenant.config.plan_standard_price;
+      if (rootTenant.config.plan_premium_price !== undefined) pricingConfig.plan_premium_price = rootTenant.config.plan_premium_price;
+    }
+  } catch { /* fallback */ }
+
+  res.json({ ...(config || {}), ...pricingConfig });
 };
 
 app.patch('/api/config', authMiddleware, handleUpdateConfig);

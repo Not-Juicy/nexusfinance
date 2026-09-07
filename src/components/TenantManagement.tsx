@@ -38,6 +38,12 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
   const [formPaywayMerchantId, setFormPaywayMerchantId] = useState('');
   const [formPaywayApiKey, setFormPaywayApiKey] = useState('');
 
+  const [planPricing, setPlanPricing] = useState({
+    basic: 49,
+    standard: 149,
+    premium: 349,
+  });
+
   const fetchTenants = async () => {
     try {
       const data = await apiFetch('/tenants');
@@ -49,6 +55,17 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
           setTenantStats(prev => ({ ...prev, [tenant.id]: stats }));
         } catch { /* stats fetch failed */ }
       }
+      // Also fetch system config to get dynamic subscription prices
+      try {
+        const cfg = await apiFetch('/config');
+        if (cfg) {
+          setPlanPricing({
+            basic: cfg.plan_basic_price !== undefined ? Number(cfg.plan_basic_price) : 49,
+            standard: cfg.plan_standard_price !== undefined ? Number(cfg.plan_standard_price) : 149,
+            premium: cfg.plan_premium_price !== undefined ? Number(cfg.plan_premium_price) : 349,
+          });
+        }
+      } catch { /* ignored */ }
     } catch (err: any) {
       showToast(err.message || 'Failed to load tenants', 'error');
     } finally {
@@ -212,9 +229,9 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
 
   const planOptions = [
     { id: 'founding', label: 'Founding', price: 'Free', badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300', desc: 'Full founding tier privileges' },
-    { id: 'basic', label: 'Basic', price: '$49/mo', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300', desc: 'Up to 50 users & 500 loans' },
-    { id: 'standard', label: 'Standard', price: '$149/mo', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', desc: 'Up to 200 users & 2,000 loans' },
-    { id: 'premium', label: 'Premium', price: '$349/mo', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300', desc: 'Unlimited enterprise volume' },
+    { id: 'basic', label: 'Basic', price: `$${planPricing.basic}/mo`, badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300', desc: 'Up to 50 users & 500 loans' },
+    { id: 'standard', label: 'Standard', price: `$${planPricing.standard}/mo`, badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', desc: 'Up to 200 users & 2,000 loans' },
+    { id: 'premium', label: 'Premium', price: `$${planPricing.premium}/mo`, badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300', desc: 'Unlimited enterprise volume' },
   ];
 
   useEffect(() => {

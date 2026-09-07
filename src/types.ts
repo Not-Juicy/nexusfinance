@@ -89,6 +89,9 @@ export interface PlatformConfig {
   grace_period_days?: number;
   late_penalty_daily?: number;
   emailVerificationRequired?: boolean;
+  plan_basic_price?: number;
+  plan_standard_price?: number;
+  plan_premium_price?: number;
 }
 
 export interface PlatformStats {
