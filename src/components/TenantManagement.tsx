@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Building2, Users, Landmark, Settings, Trash2, Edit2, X, Check, Download, QrCode, Upload, CreditCard } from 'lucide-react';
+import { Plus, Building2, Users, Landmark, Settings, Trash2, Edit2, X, Check, Download, QrCode, Upload, CreditCard, RotateCcw, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { apiFetch } from '../api';
 import { showToast } from './Toast';
 import { downloadCSV } from '../utils';
@@ -15,6 +15,12 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
   const [showCreate, setShowCreate] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [tenantStats, setTenantStats] = useState<Record<number, TenantStats>>({});
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
+  const [subscriberToPurge, setSubscriberToPurge] = useState<Tenant | null>(null);
+  const [purgeConfirmInput, setPurgeConfirmInput] = useState('');
+  const [purging, setPurging] = useState(false);
+  const [subscriberToSuspend, setSubscriberToSuspend] = useState<Tenant | null>(null);
+  const [suspending, setSuspending] = useState(false);
 
   // Form state
   const [formName, setFormName] = useState('');
@@ -132,14 +138,44 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
     showToast('Subscribers report exported successfully', 'success');
   };
 
-  const handleDeactivate = async (tenant: Tenant) => {
-    if (!confirm(`Deactivate "${tenant.name}"? Users from this subscriber will lose access.`)) return;
+  const handleSuspendConfirm = async () => {
+    if (!subscriberToSuspend) return;
+    setSuspending(true);
     try {
-      await apiFetch(`/tenants/${tenant.id}`, { method: 'DELETE' });
-      showToast('Subscriber deactivated', 'success');
+      await apiFetch(`/tenants/${subscriberToSuspend.id}`, { method: 'DELETE' });
+      showToast(`Subscriber "${subscriberToSuspend.name}" has been suspended`, 'success');
+      setSubscriberToSuspend(null);
       fetchTenants();
     } catch (err: any) {
-      showToast(err.message || 'Failed to deactivate subscriber', 'error');
+      showToast(err.message || 'Failed to suspend subscriber', 'error');
+    } finally {
+      setSuspending(false);
+    }
+  };
+
+  const handleReactivate = async (tenant: Tenant) => {
+    try {
+      await apiFetch(`/tenants/${tenant.id}/reactivate`, { method: 'POST' });
+      showToast(`Subscriber "${tenant.name}" has been reactivated!`, 'success');
+      fetchTenants();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to reactivate subscriber', 'error');
+    }
+  };
+
+  const handlePurgeConfirm = async () => {
+    if (!subscriberToPurge) return;
+    setPurging(true);
+    try {
+      await apiFetch(`/tenants/${subscriberToPurge.id}?purge=true`, { method: 'DELETE' });
+      showToast(`Subscriber "${subscriberToPurge.name}" has been permanently deleted`, 'success');
+      setSubscriberToPurge(null);
+      setPurgeConfirmInput('');
+      fetchTenants();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to permanently delete subscriber', 'error');
+    } finally {
+      setPurging(false);
     }
   };
 
@@ -213,11 +249,77 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
         </div>
       </div>
 
+      {/* Status Filter Tabs */}
+      <div className="flex items-center gap-2 border-b border-[var(--border-primary)] pb-3">
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            statusFilter === 'all'
+              ? 'bg-[var(--accent)] text-white shadow-xs'
+              : 'text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]'
+          }`}
+        >
+          <span>All Subscribers</span>
+          <span className={`text-[11px] px-1.5 py-0.2 rounded-full ${statusFilter === 'all' ? 'bg-white/25 text-white' : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)]'}`}>
+            {tenants.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setStatusFilter('active')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            statusFilter === 'active'
+              ? 'bg-emerald-500 text-white shadow-xs'
+              : 'text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+          <span>Active</span>
+          <span className={`text-[11px] px-1.5 py-0.2 rounded-full ${statusFilter === 'active' ? 'bg-white/25 text-white' : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)]'}`}>
+            {tenants.filter(t => t.is_active).length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setStatusFilter('suspended')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            statusFilter === 'suspended'
+              ? 'bg-amber-500 text-white shadow-xs'
+              : 'text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-amber-400" />
+          <span>Suspended</span>
+          <span className={`text-[11px] px-1.5 py-0.2 rounded-full ${statusFilter === 'suspended' ? 'bg-white/25 text-white' : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)]'}`}>
+            {tenants.filter(t => !t.is_active).length}
+          </span>
+        </button>
+      </div>
+
       {/* Tenant Cards */}
       {(() => {
-        const visibleTenants = (selectedTenantId && selectedTenantId !== 'all')
+        let visibleTenants = (selectedTenantId && selectedTenantId !== 'all')
           ? tenants.filter(t => String(t.id) === selectedTenantId)
           : tenants;
+
+        if (statusFilter === 'active') {
+          visibleTenants = visibleTenants.filter(t => t.is_active);
+        } else if (statusFilter === 'suspended') {
+          visibleTenants = visibleTenants.filter(t => !t.is_active);
+        }
+
+        if (visibleTenants.length === 0) {
+          return (
+            <div className="text-center py-16 border border-dashed border-[var(--border-primary)] rounded-2xl bg-[var(--surface-secondary)]/30">
+              <Building2 className="w-10 h-10 mx-auto text-[var(--text-tertiary)] mb-2 opacity-50" />
+              <p className="text-sm font-semibold text-[var(--text-primary)]">No subscribers found</p>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                {statusFilter === 'suspended' ? 'There are no suspended subscribers.' : 'No subscribers match the current filter.'}
+              </p>
+            </div>
+          );
+        }
+
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {visibleTenants.map(tenant => {
@@ -225,71 +327,113 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
           return (
             <div
               key={tenant.id}
-              className="rounded-2xl border p-5 transition-all hover:shadow-md"
-              style={{
-                backgroundColor: 'var(--surface-primary)',
-                borderColor: tenant.is_active ? 'var(--border-primary)' : '#fca5a5',
-                opacity: tenant.is_active ? 1 : 0.6,
-              }}
+              className={`rounded-2xl border p-5 transition-all hover:shadow-md relative ${
+                !tenant.is_active ? 'bg-[var(--surface-secondary)]/40 border-amber-500/30' : 'bg-[var(--surface-primary)] border-[var(--border-primary)]'
+              }`}
             >
               <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden border border-[var(--border-primary)]" style={{ backgroundColor: 'var(--surface-secondary)' }}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden border border-[var(--border-primary)] bg-[var(--surface-secondary)] shrink-0">
                     {tenant.logo_url ? (
                       <img src={tenant.logo_url} alt={tenant.name} className="w-full h-full object-contain p-1" />
                     ) : (
-                      <Building2 className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+                      <Building2 className="w-5 h-5 text-[var(--accent)]" />
                     )}
                   </div>
-                  <div>
-                    <h3 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{tenant.name}</h3>
-                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>/{tenant.slug}</p>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-sm text-[var(--text-primary)] truncate">{tenant.name}</h3>
+                    <p className="text-xs text-[var(--text-secondary)] truncate">/{tenant.slug}</p>
                   </div>
                 </div>
-                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${planColors[tenant.plan] || 'bg-gray-100 text-gray-700'}`}>
-                  {tenant.plan}
-                </span>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Status badge */}
+                  {tenant.is_active ? (
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Suspended
+                    </span>
+                  )}
+                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${planColors[tenant.plan] || 'bg-gray-100 text-gray-700'}`}>
+                    {tenant.plan}
+                  </span>
+                </div>
               </div>
 
               {/* Stats */}
               {stats && (
-                <div className="grid grid-cols-3 gap-2 mb-4 py-3 border-t border-b" style={{ borderColor: 'var(--border-primary)' }}>
+                <div className="grid grid-cols-3 gap-2 mb-4 py-3 border-t border-b border-[var(--border-primary)]">
                   <div className="text-center">
-                    <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{stats.total_users}</p>
-                    <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Users</p>
+                    <p className="text-lg font-bold text-[var(--text-primary)]">{stats.total_users}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)]">Users</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{stats.total_loans}</p>
-                    <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Loans</p>
+                    <p className="text-lg font-bold text-[var(--text-primary)]">{stats.total_loans}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)]">Loans</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>${stats.total_volume?.toLocaleString() || 0}</p>
-                    <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Volume</p>
+                    <p className="text-lg font-bold text-[var(--text-primary)]">${stats.total_volume?.toLocaleString() || 0}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)]">Volume</p>
                   </div>
                 </div>
               )}
 
               {/* Limits */}
-              <div className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
-                Max {tenant.max_users} users, {tenant.max_loans} loans
+              <div className="text-xs mb-4 flex items-center justify-between text-[var(--text-secondary)]">
+                <span>Max {tenant.max_users} users, {tenant.max_loans} loans</span>
+                {tenant.payment_provider && (
+                  <span className="text-[10px] font-mono text-[var(--text-tertiary)] uppercase">
+                    {tenant.payment_provider === 'aba_payway' ? 'ABA PayWay' : 'KHQR'}
+                  </span>
+                )}
               </div>
 
               {/* Actions */}
               <div className="flex gap-2">
                 <button
                   onClick={() => startEdit(tenant)}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border cursor-pointer transition-colors hover:bg-[var(--surface-secondary)]"
-                  style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[var(--border-primary)] text-[var(--text-secondary)] cursor-pointer transition-colors hover:bg-[var(--surface-secondary)]"
                 >
                   <Edit2 className="w-3.5 h-3.5" /> Edit
                 </button>
+
                 {tenant.id !== 1 && (
-                  <button
-                    onClick={() => handleDeactivate(tenant)}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-red-200 text-red-600 cursor-pointer transition-colors hover:bg-red-50"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <>
+                    {tenant.is_active ? (
+                      <button
+                        onClick={() => setSubscriberToSuspend(tenant)}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-amber-500/30 text-amber-600 cursor-pointer transition-colors hover:bg-amber-500/10"
+                        title="Suspend subscriber access"
+                      >
+                        <ShieldAlert className="w-3.5 h-3.5" />
+                        <span>Suspend</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleReactivate(tenant)}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-emerald-500/30 text-emerald-600 cursor-pointer transition-colors hover:bg-emerald-500/10"
+                        title="Reactivate subscriber"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Reactivate</span>
+                      </button>
+                    )}
+
+                    {/* Permanent Delete Button */}
+                    <button
+                      onClick={() => {
+                        setSubscriberToPurge(tenant);
+                        setPurgeConfirmInput('');
+                      }}
+                      className="p-2 rounded-lg text-rose-500 border border-rose-200 hover:bg-rose-500/10 cursor-pointer transition-colors"
+                      title="Permanently Delete Subscriber"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -551,6 +695,137 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
               >
                 <Check className="w-4 h-4" />
                 {editingTenant ? 'Save Changes' : 'Create Subscriber'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Suspend Confirmation Modal */}
+      {subscriberToSuspend && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div
+            className="w-full max-w-md rounded-2xl border p-6 shadow-2xl relative"
+            style={{ backgroundColor: 'var(--surface-primary)', borderColor: 'var(--border-primary)' }}
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6 text-amber-500" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                  Suspend Subscriber?
+                </h3>
+                <p className="text-sm mt-1 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  Are you sure you want to suspend <strong className="text-[var(--text-primary)]">"{subscriberToSuspend.name}"</strong>?
+                </p>
+                <div className="mt-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 space-y-1">
+                  <p className="font-semibold flex items-center gap-1.5">
+                    Impact of suspension:
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5 opacity-90">
+                    <li>All admin & user logins for this subscriber will be blocked.</li>
+                    <li>All subscriber loans and data are kept safely intact.</li>
+                    <li>You can reactivate this subscriber at any time.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setSubscriberToSuspend(null)}
+                disabled={suspending}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold border cursor-pointer hover:bg-[var(--surface-secondary)] transition-colors"
+                style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSuspendConfirm}
+                disabled={suspending}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 cursor-pointer transition-colors"
+              >
+                {suspending ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                ) : (
+                  'Suspend Access'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permanent Purge Modal */}
+      {subscriberToPurge && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div
+            className="w-full max-w-md rounded-2xl border p-6 shadow-2xl relative"
+            style={{ backgroundColor: 'var(--surface-primary)', borderColor: 'var(--border-primary)' }}
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-6 h-6 text-red-500" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-red-600 dark:text-red-400">
+                  Permanently Delete Subscriber
+                </h3>
+                <p className="text-sm mt-1 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  This action is <strong className="text-red-500 uppercase tracking-wide">irreversible</strong>. You are about to permanently purge:
+                </p>
+                <div className="mt-2 p-2.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  {subscriberToPurge.name} <span className="text-xs font-normal opacity-60">({subscriberToPurge.slug})</span>
+                </div>
+
+                <div className="mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-700 dark:text-red-300 space-y-1">
+                  <p className="font-semibold">Destructive consequences:</p>
+                  <ul className="list-disc list-inside space-y-0.5 opacity-90">
+                    <li>Database records, subscriber configs, and users will be deleted.</li>
+                    <li>If active loans exist, deletion will be blocked by system guardrails.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                Type <span className="font-mono font-bold text-red-500">{subscriberToPurge.name}</span> to confirm:
+              </label>
+              <input
+                type="text"
+                value={purgeConfirmInput}
+                onChange={e => setPurgeConfirmInput(e.target.value)}
+                placeholder={subscriberToPurge.name}
+                className="w-full px-3 py-2 rounded-xl text-sm border font-mono outline-none focus:ring-2 focus:ring-red-500"
+                style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--surface-secondary)', color: 'var(--text-primary)' }}
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => { setSubscriberToPurge(null); setPurgeConfirmInput(''); }}
+                disabled={purging}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold border cursor-pointer hover:bg-[var(--surface-secondary)] transition-colors"
+                style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePurgeConfirm}
+                disabled={purging || purgeConfirmInput.trim().toLowerCase() !== subscriberToPurge.name.trim().toLowerCase()}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              >
+                {purging ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete Permanently
+                  </>
+                )}
               </button>
             </div>
           </div>

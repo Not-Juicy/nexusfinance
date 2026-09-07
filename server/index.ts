@@ -2836,16 +2836,61 @@ app.patch('/api/tenants/:id', authMiddleware, requireRole('super-admin', 'admin'
   });
 });
 
-// Delete tenant (super-admin only, soft-deactivate)
+// Delete / Suspend / Purge tenant (super-admin only)
 app.delete('/api/tenants/:id', authMiddleware, requireRole('super-admin'), async (req, res) => {
   const tenantId = parseInt(req.params.id);
-  if (tenantId === 1) return res.status(400).json({ error: 'Cannot delete the default tenant.' });
-  
-  const { error } = await db.from('nexus_tenants').update({ is_active: false }).eq('id', tenantId);
+  if (tenantId === 1) return res.status(400).json({ error: 'Cannot delete or suspend the default organization.' });
+
+  const isPurge = req.query.purge === 'true';
+
+  if (isPurge) {
+    // Check if there are active loans or users
+    const [loansCheck, usersCheck] = await Promise.all([
+      db.from('nexus_loans').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+      db.from('nexus_users').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+    ]);
+
+    if ((loansCheck.count || 0) > 0) {
+      return res.status(400).json({
+        error: `Cannot permanently delete this subscriber because it has ${loansCheck.count} active loans on record. Please suspend it instead.`
+      });
+    }
+
+    try {
+      // Clean up linked settings & configurations first
+      await Promise.all([
+        db.from('nexus_reminder_settings').delete().eq('tenant_id', tenantId),
+        db.from('nexus_config').delete().eq('tenant_id', tenantId),
+        db.from('nexus_payway_transactions').delete().eq('tenant_id', tenantId),
+        db.from('nexus_users').delete().eq('tenant_id', tenantId),
+      ]);
+
+      const { error } = await db.from('nexus_tenants').delete().eq('id', tenantId);
+      if (error) return res.status(500).json({ error: error.message });
+
+      logAudit('tenant-deleted-permanently', `Subscriber ${tenantId} permanently deleted`, req.user);
+      return res.json({ ok: true, message: 'Subscriber permanently deleted.' });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Failed to delete subscriber' });
+    }
+  }
+
+  // Soft suspension
+  const { error } = await db.from('nexus_tenants').update({ is_active: false, updated_at: new Date().toISOString() }).eq('id', tenantId);
   if (error) return res.status(500).json({ error: error.message });
-  
-  logAudit('tenant-deactivated', `Tenant ${tenantId} deactivated`, req.user);
-  res.json({ ok: true, message: 'Tenant deactivated.' });
+
+  logAudit('tenant-suspended', `Subscriber ${tenantId} suspended`, req.user);
+  res.json({ ok: true, message: 'Subscriber suspended.' });
+});
+
+// Reactivate a suspended subscriber
+app.post('/api/tenants/:id/reactivate', authMiddleware, requireRole('super-admin'), async (req, res) => {
+  const tenantId = parseInt(req.params.id);
+  const { error } = await db.from('nexus_tenants').update({ is_active: true, updated_at: new Date().toISOString() }).eq('id', tenantId);
+  if (error) return res.status(500).json({ error: error.message });
+
+  logAudit('tenant-reactivated', `Subscriber ${tenantId} reactivated`, req.user);
+  res.json({ ok: true, message: 'Subscriber reactivated successfully.' });
 });
 
 // Get tenant stats (super-admin only)
