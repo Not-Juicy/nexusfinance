@@ -157,8 +157,8 @@ export default function Header({
                 </div>
                 <span className="max-w-[130px] truncate text-[var(--text-primary)]">
                   {selectedTenantId === 'all'
-                    ? 'All Tenants'
-                    : (tenants.find(t => String(t.id) === selectedTenantId)?.name || `Tenant #${selectedTenantId}`)}
+                    ? 'All Subscribers'
+                    : (tenants.find(t => String(t.id) === selectedTenantId)?.name || `Subscriber #${selectedTenantId}`)}
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" />
               </button>
@@ -168,10 +168,10 @@ export default function Header({
                   <div className="fixed inset-0 z-40" onClick={() => setShowTenantDropdown(false)} />
                   <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-56 bg-[var(--surface-card)] border border-[var(--border-primary)] rounded-2xl shadow-xl py-1.5 z-50 animate-dropdown-enter backdrop-blur-xl">
                     <div className="px-3 py-1.5 border-b border-[var(--border-primary)] text-[10.5px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)]">
-                      Organization Scope
+                      Subscriber Scope
                     </div>
                     
-                    {/* All Tenants Option */}
+                    {/* All Subscribers Option */}
                     <button
                       onClick={() => {
                         setInternalSelectedTenantId('all');
@@ -187,12 +187,12 @@ export default function Header({
                     >
                       <div className="flex items-center gap-2">
                         <Building2 className="w-4 h-4 opacity-70" />
-                        <span>All Organizations</span>
+                        <span>All Subscribers</span>
                       </div>
                       {selectedTenantId === 'all' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />}
                     </button>
 
-                    {/* Specific Tenants */}
+                    {/* Specific Subscribers */}
                     {tenants.map((tenant) => (
                       <button
                         key={tenant.id}

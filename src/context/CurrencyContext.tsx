@@ -18,7 +18,7 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined
 export const translations: Record<string, { en: string; kh: string }> = {
   // Sidebar & Navigation
   'dashboard': { en: 'Dashboard', kh: 'ផ្ទាំងគ្រប់គ្រង' },
-  'tenants': { en: 'Tenants', kh: 'ស្ថាប័នដៃគូ (Tenants)' },
+  'tenants': { en: 'Subscribers', kh: 'ស្ថាប័នជាវសេវា (Subscribers)' },
   'users': { en: 'Users', kh: 'អ្នកប្រើប្រាស់' },
   'reminders': { en: 'Reminders', kh: 'ការរំលឹកបំណុល' },
   'broadcast': { en: 'Broadcast', kh: 'ការផ្សព្វផ្សាយ' },

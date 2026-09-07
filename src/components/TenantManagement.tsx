@@ -72,12 +72,12 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
           payway_api_key: formPaymentProvider === 'aba_payway' ? formPaywayApiKey.trim() || undefined : undefined,
         }),
       });
-      showToast('Tenant created successfully', 'success');
+      showToast('Subscriber created successfully', 'success');
       setShowCreate(false);
       resetForm();
       fetchTenants();
     } catch (err: any) {
-      showToast(err.message || 'Failed to create tenant', 'error');
+      showToast(err.message || 'Failed to create subscriber', 'error');
     }
   };
 
@@ -99,12 +99,12 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
           payway_api_key: formPaymentProvider === 'aba_payway' ? formPaywayApiKey.trim() : '',
         }),
       });
-      showToast('Tenant updated successfully', 'success');
+      showToast('Subscriber updated successfully', 'success');
       setEditingTenant(null);
       resetForm();
       fetchTenants();
     } catch (err: any) {
-      showToast(err.message || 'Failed to update tenant', 'error');
+      showToast(err.message || 'Failed to update subscriber', 'error');
     }
   };
 
@@ -113,7 +113,7 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
     const reportData = tenants.map(t => {
       const st = tenantStats[t.id];
       return {
-        'Tenant ID': t.id,
+        'Subscriber ID': t.id,
         'Organization Name': t.name,
         'Slug': t.slug,
         'Plan': t.plan,
@@ -128,18 +128,18 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
         'Created Date': new Date(t.created_at).toLocaleDateString(),
       };
     });
-    downloadCSV(reportData, `nexus_organizations_report_${new Date().toISOString().slice(0,10)}.csv`);
-    showToast('Organizations report exported successfully', 'success');
+    downloadCSV(reportData, `nexus_subscribers_report_${new Date().toISOString().slice(0,10)}.csv`);
+    showToast('Subscribers report exported successfully', 'success');
   };
 
   const handleDeactivate = async (tenant: Tenant) => {
-    if (!confirm(`Deactivate "${tenant.name}"? Users from this tenant will lose access.`)) return;
+    if (!confirm(`Deactivate "${tenant.name}"? Users from this subscriber will lose access.`)) return;
     try {
       await apiFetch(`/tenants/${tenant.id}`, { method: 'DELETE' });
-      showToast('Tenant deactivated', 'success');
+      showToast('Subscriber deactivated', 'success');
       fetchTenants();
     } catch (err: any) {
-      showToast(err.message || 'Failed to deactivate tenant', 'error');
+      showToast(err.message || 'Failed to deactivate subscriber', 'error');
     }
   };
 
@@ -191,7 +191,7 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Tenant Management</h2>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Subscriber Management</h2>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Manage subscribing organizations</p>
         </div>
         <div className="flex items-center gap-2.5">
@@ -208,7 +208,7 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer"
             style={{ backgroundColor: 'var(--accent)' }}
           >
-            <Plus className="w-4 h-4" /> Add Tenant
+            <Plus className="w-4 h-4" /> Add Subscriber
           </button>
         </div>
       </div>
@@ -305,7 +305,7 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
           <div className="w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ backgroundColor: 'var(--surface-primary)' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-                {editingTenant ? 'Edit Tenant' : 'Create Tenant'}
+                {editingTenant ? 'Edit Subscriber' : 'Create Subscriber'}
               </h3>
               <button onClick={() => { setShowCreate(false); setEditingTenant(null); }} className="p-1.5 rounded-lg cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
                 <X className="w-5 h-5" />
@@ -550,7 +550,7 @@ export default function TenantManagement({ selectedTenantId }: TenantManagementP
                 style={{ backgroundColor: 'var(--accent)' }}
               >
                 <Check className="w-4 h-4" />
-                {editingTenant ? 'Save Changes' : 'Create Tenant'}
+                {editingTenant ? 'Save Changes' : 'Create Subscriber'}
               </button>
             </div>
           </div>
